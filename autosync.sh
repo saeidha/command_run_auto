@@ -1,13 +1,14 @@
 #!/bin/bash
 # autosync.sh
-# اجرا کردن sync.sh هر ۲ ثانیه
+set -e
 
 SCRIPT_DIR=$(dirname "$0")
-SYNC_SCRIPT="$SCRIPT_DIR/sync.sh"
+source "$SCRIPT_DIR/projects.sh"
 
-echo "🚀 Starting auto-sync every 2 seconds..."
-while true; do
-    echo "⏱ $(date '+%H:%M:%S') - Running sync..."
-    bash "$SYNC_SCRIPT"
-    sleep 2
+SOURCE=${PROJECT_PATHS[0]}
+
+echo "👀 Watching $SOURCE for changes..."
+fswatch -o "$SOURCE" | while read -r event; do
+    echo "🔄 Change detected in $SOURCE → running sync..."
+    bash "$SCRIPT_DIR/sync.sh"
 done

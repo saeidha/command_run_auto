@@ -1,19 +1,20 @@
 #!/bin/bash
-set -e
+set -euo pipefail  # امن‌تر: خطا روی unset variable هم بترکونه
 
 # import پروژه‌ها
-source "$(dirname "$0")/projects.sh"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+source "$SCRIPT_DIR/projects.sh"
 
-COMMIT_MESSAGE=$1
+COMMIT_MESSAGE=${1:-}  # امن‌تر از $1
 
 # --- بخش ۱: تعیین پیام کامیت ---
 if [ -z "$COMMIT_MESSAGE" ]; then
     echo "🔍 No commit message provided. Generating one automatically..."
 
     FIRST_PROJECT_PATH=${PROJECT_PATHS[0]}
-    cd "$FIRST_PROJECT_PATH" || exit
+    cd "$FIRST_PROJECT_PATH" || exit 1
 
-    FIRST_CHANGED_FILE=$(git status --porcelain | head -n 1 | awk '{print $2}')
+    FIRST_CHANGED_FILE=$(git status --porcelain | awk 'NR==1 {print $2}')
 
     if [ -z "$FIRST_CHANGED_FILE" ]; then
         echo "❌ No changes found. Aborting."
@@ -41,7 +42,12 @@ for project_path in "${PROJECT_PATHS[@]}"; do
     echo "📦 Processing project: $project_path"
     cd "$project_path" || continue
     git add .
-    git commit -m "$COMMIT_MESSAGE" || echo "⚠️ Nothing to commit in $project_path"
+
+    if git diff --cached --quiet; then
+        echo "⚠️ Nothing to commit in $project_path"
+    else
+        git commit -m "$COMMIT_MESSAGE"
+    fi
     echo "--------------------------------"
 done
 
