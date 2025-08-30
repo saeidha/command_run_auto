@@ -20,23 +20,28 @@ TARGETS=("${PROJECT_PATHS[@]:1}")
 
 cd "$SOURCE" || exit 1
 
-# گرفتن همه تغییرات (staged + unstaged + untracked)
-git add -N .
-git diff HEAD --binary > /tmp/last.diff
-
-if [ ! -s /tmp/last.diff ]; then
+# چک تغییرات
+if git diff --quiet && git diff --cached --quiet; then
     echo "❌ No changes to apply."
     exit 0
 fi
 
+# فایل‌های تغییر یافته رو پیدا کن
+CHANGED_FILES=$(git status --porcelain | awk '{print $2}')
+
+if [ -z "$CHANGED_FILES" ]; then
+    echo "❌ No changes to sync."
+    exit 0
+fi
+
 for target in "${TARGETS[@]}"; do
-    echo "🔄 Applying patch to $target"
-    cd "$target" || continue
-    # اول امتحان با normal apply
-    if ! git apply --whitespace=fix /tmp/last.diff; then
-        echo "⚠️ Conflict while applying patch to $target"
-        continue
-    fi
+    echo "🔄 Syncing changes to $target"
+    for file in $CHANGED_FILES; do
+        if [ -f "$SOURCE/$file" ]; then
+            mkdir -p "$(dirname "$target/$file")"
+            rsync -a "$SOURCE/$file" "$target/$file"
+        fi
+    done
 done
 
 echo "✅ Sync complete!"
@@ -44,4 +49,4 @@ echo "✅ Sync complete!"
 # اجرای اتومات commit_all.sh
 bash "$SCRIPT_DIR/commit_all.sh" "$@" || true
 
-sleep 1  # کمی استراحت برای جلوگیری از فشار
+sleep 1
